@@ -111,7 +111,7 @@ class ManipulateData:
                 out.writerow([PDB, Chain, trash, AA, PDB_Coord, Uni, aa, Uni_Coord])
             except:
                 continue
-                
+
 class myPDB:
     def __init__(self, PDB, chain):
         self.PDB = PDB
@@ -168,3 +168,12 @@ class Gene2PDB:
 
 ins = ManipulateData()
 
+class ConstrainModel:
+    def __init__(self):
+        
+        #self.Mutable=
+        pass 
+
+    def chi2(obs, exp):
+        return (obs-exp) ** 2 / exp
+cons = ConstrainModel()
