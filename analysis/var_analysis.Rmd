@@ -116,6 +116,20 @@ specificity(data = as.factor(test.pred),
 confusionMatrix(data = as.factor(test.pred), positive = "P",
                 reference = data$class[-rowTrain]) 
 
+reference = data$class[-rowTrain]
+score = as.character(test.pred.prob)
+
+levels = as.data.frame(reference, score) %>%
+  rownames_to_column(var =  "score")
+
+levels$prediction <- rep("B", length(test.pred.prob))
+levels$prediction[levels$score > 0.1 & levels$score < 0.9] <- "U"
+levels$prediction[levels$score > 0.9] <- "P"
+
+levels 
+#losing 5785 to NAs ie 24%
+
+
 #larger type II error than type I error, 
   #McNemar: reject null that they are equivalent 
 
@@ -125,6 +139,15 @@ roc.glm <- roc(data$class[-rowTrain], test.pred.prob)
 
 plot(roc.glm)  #legacy.axes = TRUE
 auc(roc.glm)
+
+log_scores = as.data.frame(test.pred.prob) %>%
+  rename(prediction_score = test.pred.prob)
+
+log_scores %>%
+  ggplot(aes(prediction_score, ..density..)) +
+  geom_histogram() +
+  ggtitle("Logistic Regression Score Histogram") 
+  
 ```
 
 Prediction with the logistic model results in high sensitivity and low specificity, with an area under the curve of 0.875. 
@@ -183,8 +206,9 @@ auc(roc.poly)
 
 
 ggroc(list(roc.glm, roc.cadd, roc.sift, roc.msvm, roc.poly)) +
-  scale_color_manual(labels = c("deepseq9", "cadd", "sift", "msvm", "polyphe"),
-                     values = c("red", "orange", "forestgreen", "blue", "purple")) 
+  scale_color_manual(labels = c("DeepSeq9", "CADD", "SIFT", "Meta SVM", "Polyphen2 HDIV"),
+                     values = c("red", "orange", "forestgreen", "blue", "purple")) +
+  ggtitle("ROC Curve") 
 ```
 
 
@@ -192,27 +216,37 @@ ggroc(list(roc.glm, roc.cadd, roc.sift, roc.msvm, roc.poly)) +
 
 ```{r random forest}
 
+#data split must be even
+
 set.seed(5)
-train <- sample(1:nrow(data), nrow(data)/2)
+
+data2 = data[-1,]
+  
+train <- sample(1:nrow(data2), nrow(data2)/2)
 
 
 #random forest
 
-rf.var <- randomForest(class ~ ., data[train,], mtry=6, importance =TRUE, na.action = na.exclude)
+rf.var <- randomForest(class ~ ., data2[train,], mtry=5, importance =TRUE, na.action = na.exclude)
 rf.var
 
 importance(rf.var)
 
-pred.test.rf <- predict(rf.var, newdata = data[-train,], type = "prob")
+pred.test.rf <- predict(rf.var, newdata = data2[-train,], type = "prob")
 
+
+table(pred.test.rf, data2[-train]$class)
 
 varImpPlot(rf.var)
 
+
+rf.var$predicted
 #bagging - performs no better than random forest
 
 #bag.var <- randomForest(class ~ ., subset[train,], mtry=22, importance =TRUE, na.action = na.exclude)
 #pred.test.bag <- predict(bag.var, newdata = subset[-train,], type = "prob")
 ```
+
 
 Mtry is the square root of the number of predictors available for our analysis (23) which calculates to 5. As we can see, random forest is highly accurate when predicting the larger class (in this case benign), whereas it struggles to correctly identify pathogenic variants.
 
