@@ -197,7 +197,7 @@ train <- sample(1:nrow(data), nrow(data)/2)
 
 #random forest
 
-rf.var <- randomForest(class ~ ., data[train,], mtry=5, importance =TRUE, na.action = na.exclude)
+rf.var <- randomForest(class ~ ., data[train,], mtry=6, importance =TRUE, na.action = na.exclude)
 rf.var
 
 importance(rf.var)
