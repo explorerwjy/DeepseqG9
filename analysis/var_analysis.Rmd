@@ -122,11 +122,18 @@ score = as.character(test.pred.prob)
 levels = as.data.frame(reference, score) %>%
   rownames_to_column(var =  "score")
 
-levels$prediction <- rep("B", length(test.pred.prob))
-levels$prediction[levels$score > 0.1 & levels$score < 0.9] <- "U"
-levels$prediction[levels$score > 0.9] <- "P"
+my_mean = levels %>%
+  na.omit() %>%
+  mutate(score = as.numeric(score)) 
 
-levels 
+mean(my_mean$score) #0.5239517
+sd(my_mean$score)/2 #one sd
+
+levels$prediction <- rep("B", length(test.pred.prob))
+levels$prediction[levels$score >= 0.1273666 & levels$score <  0.2974388] <- "LB"
+levels$prediction[levels$score >= 0.2974388 & levels$score <  0.8213905] <- "VUS"
+levels$prediction[levels$score >= 0.8213905 & levels$score <  0.9205368] <- "LP"
+levels$prediction[levels$score > 0.9205368] <- "P"
 #losing 5785 to NAs ie 24%
 
 
@@ -140,17 +147,22 @@ roc.glm <- roc(data$class[-rowTrain], test.pred.prob)
 plot(roc.glm)  #legacy.axes = TRUE
 auc(roc.glm)
 
-log_scores = as.data.frame(test.pred.prob) %>%
-  rename(prediction_score = test.pred.prob)
 
-log_scores %>%
-  ggplot(aes(prediction_score, ..density..)) +
-  geom_histogram() +
-  ggtitle("Logistic Regression Score Histogram") 
-  
+levels %>%
+  mutate(score = as.numeric(score)) %>%
+  ggplot(aes(score, ..density.., fill = reference)) +
+  geom_histogram(alpha = 0.7, position = "identity")+
+  scale_fill_manual(values=c("deepskyblue", "coral1")) +
+  ggtitle("DeepSeq9 Histogram") 
+
+levels %>%
+  group_by(reference, prediction) %>%
+  count()
 ```
 
 Prediction with the logistic model results in high sensitivity and low specificity, with an area under the curve of 0.875. 
+
+f we were to assume a bell curve of 'real' values, let's say more than 2SD below the mean = Benign, 1.5-2SD below the mean = likely benign, 1.5 below to 1.5 above =VUS, 1.5-2SD above = likely pathogenic, more than 2SD above = pathogenic
 
 ```{r logistic comparison}
 
