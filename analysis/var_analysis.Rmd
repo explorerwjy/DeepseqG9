@@ -123,8 +123,7 @@ roc.glm <- roc(data$class[-rowTrain], test.pred.prob)
 #glm fit and predict each of them, then include all on the same plot
 
 plot(roc.glm)  #legacy.axes = TRUE
-
-ggroc(roc.glm)  
+auc(roc.glm)
 ```
 
 Prediction with the logistic model results in high sensitivity and low specificity, with an area under the curve of 0.875. 
@@ -182,13 +181,9 @@ roc.poly <- roc(data$class[-rowTrain], poly.pred.prob)
 auc(roc.poly)
 
 
-plot(roc.glm, col = 1, main = "ROC")
-plot(roc.cadd, col = 2, add = TRUE)
-plot(roc.msvm, col = 3, add = TRUE)
-plot(roc.sift, col = 4, add = TRUE)
-plot(roc.poly, col = 5, add = TRUE)
-
-ggroc(list(roc.glm, roc.cadd, roc.sift, roc.msvm, roc.poly)) 
+ggroc(list(roc.glm, roc.cadd, roc.sift, roc.msvm, roc.poly)) +
+  scale_color_manual(labels = c("all", "cadd", "sift", "msvm", "polyphe"),
+                     values = c("red", "orange", "forestgreen", "blue", "purple")) 
 ```
 
 
@@ -197,21 +192,17 @@ ggroc(list(roc.glm, roc.cadd, roc.sift, roc.msvm, roc.poly))
 ```{r random forest}
 
 set.seed(5)
-
-subset = data[sample(nrow(data), 285820), ]  #25% 
-train <- sample(1:nrow(subset), nrow(subset)/2)
+train <- sample(1:nrow(data), nrow(data)/2)
 
 
 #random forest
 
-rf.var <- randomForest(class ~ ., subset[train,], mtry=5, importance =TRUE, na.action = na.exclude)
+rf.var <- randomForest(class ~ ., data[train,], mtry=5, importance =TRUE, na.action = na.exclude)
+rf.var
 
 importance(rf.var)
 
-pred.test.rf <- predict(rf.var, newdata = subset[-train,], type = "prob")
-
-table(subset[-train]$class, pred.test.rf)
-
+pred.test.rf <- predict(rf.var, newdata = data[-train,], type = "prob")
 
 
 varImpPlot(rf.var)
