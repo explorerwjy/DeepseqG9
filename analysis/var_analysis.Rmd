@@ -49,6 +49,7 @@ b = b %>%
   mutate(gnom_ad_exome_all = as.numeric(gnom_ad_exome_all)) %>%
   filter(gnom_ad_exome_all >= 0.0001)
 
+
 p = path %>%
   clean_names() %>%
   mutate(class = as.factor(c("P")))
@@ -56,7 +57,7 @@ p = path %>%
 
 final = rbind(b, p)
 
-final[final == "."] <- NA
+final[final1 == "."] <- NA
 
 
 final = final %>%
@@ -67,7 +68,7 @@ final = final %>%
 #Y: NAs : lrt_converted_rankscore, mutation_taster_converted_rankscores  #delete Y rows
 
 data = final %>%
-  dplyr::select(class, 6:14, sift_converted_rankscore, polyphen2_hdiv_rankscore, polyphen2_hvar_rankscore, lrt_converted_rankscore, mutation_taster_converted_rankscore, mutation_assessor_score_rankscore, fathmm_converted_rankscore, provean_converted_rankscore, vest3_rankscore, meta_svm_rankscore, meta_lr_rankscore, m_cap_rankscore, cadd_phred, dann_rankscore, fathmm_mkl_coding_rankscore, geno_canyon_score_rankscore, gerp_rs_rankscore, phylo_p100way_vertebrate_rankscore, phylo_p20way_mammalian_rankscore, phast_cons100way_vertebrate_rankscore, phast_cons20way_mammalian_rankscore, si_phy_29way_log_odds_rankscore) %>%
+  dplyr::select(class, sift_converted_rankscore, polyphen2_hdiv_rankscore, polyphen2_hvar_rankscore, lrt_converted_rankscore, mutation_taster_converted_rankscore, mutation_assessor_score_rankscore, fathmm_converted_rankscore, provean_converted_rankscore, vest3_rankscore, meta_svm_rankscore, meta_lr_rankscore, m_cap_rankscore, cadd_phred, dann_rankscore, fathmm_mkl_coding_rankscore, geno_canyon_score_rankscore, gerp_rs_rankscore, phylo_p100way_vertebrate_rankscore, phylo_p20way_mammalian_rankscore, phast_cons100way_vertebrate_rankscore, phast_cons20way_mammalian_rankscore, si_phy_29way_log_odds_rankscore) %>%
   mutate_if(is.factor, funs(as.character)) %>%
   mutate(class = factor(class, levels = c("B", "P"), ordered = F)) %>%
   mutate_if(is.character, funs(as.numeric))
@@ -182,7 +183,7 @@ auc(roc.poly)
 
 
 ggroc(list(roc.glm, roc.cadd, roc.sift, roc.msvm, roc.poly)) +
-  scale_color_manual(labels = c("all", "cadd", "sift", "msvm", "polyphe"),
+  scale_color_manual(labels = c("deepseq9", "cadd", "sift", "msvm", "polyphe"),
                      values = c("red", "orange", "forestgreen", "blue", "purple")) 
 ```
 
@@ -214,3 +215,4 @@ varImpPlot(rf.var)
 ```
 
 Mtry is the square root of the number of predictors available for our analysis (23) which calculates to 5. As we can see, random forest is highly accurate when predicting the larger class (in this case benign), whereas it struggles to correctly identify pathogenic variants.
+
