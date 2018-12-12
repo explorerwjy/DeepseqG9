@@ -1,0 +1,225 @@
+---
+title: "deepseq"
+author: "Kathryn Addabbo"
+date: "December 8, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(readr)
+library(caret)
+library(corrplot)
+library(pROC) 
+library(ROCR)
+library(MASS)
+library(randomForest)
+
+
+benign = gzfile('benign1.csv.gz', 'rt')
+pathogenic = gzfile('pathogenic1.csv.gz', 'rt')
+
+ben = read.csv(benign, header = F)
+path = read.csv(pathogenic, header = F)
+
+names(ben) <- as.matrix(ben[1,])
+ben <- ben[-1,]
+
+names(path) <- as.matrix(path[1,])
+path <- path[-1,]
+
+#merge data based on unique identifier #Chr + Pos + ref + alt
+```
+
+```{r}
+
+b = ben %>%
+  clean_names() %>%
+  mutate(class = as.factor(c("B")),
+         gnom_ad_exome_all = as.character(gnom_ad_exome_all)) 
+
+options(scipen = 999)
+
+b = b %>%
+  mutate(gnom_ad_exome_all = as.numeric(gnom_ad_exome_all)) %>%
+  filter(gnom_ad_exome_all >= 0.0001)
+
+p = path %>%
+  clean_names() %>%
+  mutate(class = as.factor(c("P")))
+
+
+final = rbind(b, p)
+
+final[final == "."] <- NA
+
+
+final = final %>%
+  filter(!chr == "Y") 
+
+#X: NAs : eigen, integrated_fit_cons_score_rankscore                     #delete eigen and integrated columns
+
+#Y: NAs : lrt_converted_rankscore, mutation_taster_converted_rankscores  #delete Y rows
+
+data = final %>%
+  dplyr::select(class, 6:14, sift_converted_rankscore, polyphen2_hdiv_rankscore, polyphen2_hvar_rankscore, lrt_converted_rankscore, mutation_taster_converted_rankscore, mutation_assessor_score_rankscore, fathmm_converted_rankscore, provean_converted_rankscore, vest3_rankscore, meta_svm_rankscore, meta_lr_rankscore, m_cap_rankscore, cadd_phred, dann_rankscore, fathmm_mkl_coding_rankscore, geno_canyon_score_rankscore, gerp_rs_rankscore, phylo_p100way_vertebrate_rankscore, phylo_p20way_mammalian_rankscore, phast_cons100way_vertebrate_rankscore, phast_cons20way_mammalian_rankscore, si_phy_29way_log_odds_rankscore) %>%
+  mutate_if(is.factor, funs(as.character)) %>%
+  mutate(class = factor(class, levels = c("B", "P"), ordered = F)) %>%
+  mutate_if(is.character, funs(as.numeric))
+
+summary(data)  
+colSums(is.na(data))
+```
+
+```{r}
+
+corr = data %>%
+  dplyr::select(-class) %>%
+  na.omit()
+
+corrplot(cor(corr), method="number",shade.col=NA, tl.col="black", tl.srt=65, tl.pos='n')
+```
+
+
+```{r logistic}
+
+set.seed(64)
+rowTrain <- sample(1:dim(data)[1], nrow(data)*0.80, replace = FALSE) #80%
+
+glm.fit <- glm(class ~ . ,data = data, subset = rowTrain, family=binomial)
+summary(glm.fit)
+
+pchisq(summary(glm.fit)$deviance, summary(glm.fit)$df.residual, lower.tail = FALSE) #DOES NOT fit the data
+
+test.pred.prob  <- predict(glm.fit, newdata = data[-rowTrain,], type="response")
+
+test.pred <- rep("B", length(test.pred.prob))
+test.pred[test.pred.prob > 0.5] <- "P"
+
+#B is reference, P next level therefore prediction probability is likelihood of P
+
+# proportion of pathogenic correctly identified
+sensitivity(data = as.factor(test.pred),
+            reference = data$class[-rowTrain]) 
+
+#proportion of benign correctly identified
+specificity(data = as.factor(test.pred),
+            reference = data$class[-rowTrain])
+
+
+confusionMatrix(data = as.factor(test.pred), positive = "P",
+                reference = data$class[-rowTrain]) 
+
+#larger type II error than type I error, 
+  #McNemar: reject null that they are equivalent 
+
+roc.glm <- roc(data$class[-rowTrain], test.pred.prob)
+
+#glm fit and predict each of them, then include all on the same plot
+
+plot(roc.glm)  #legacy.axes = TRUE
+
+ggroc(roc.glm)  
+```
+
+Prediction with the logistic model results in high sensitivity and low specificity, with an area under the curve of 0.875. 
+
+```{r logistic comparison}
+
+
+#SIFT
+glm.sift <- glm(class ~ sift_converted_rankscore ,data = data, subset = rowTrain, family=binomial)
+
+sift.pred.prob  <- predict(glm.sift, newdata = data[-rowTrain,], type="response")
+
+sift.pred <- rep("B", length(sift.pred.prob))
+sift.pred[sift.pred.prob > 0.5] <- "P"
+
+roc.sift <- roc(data$class[-rowTrain], sift.pred.prob)
+auc(roc.sift)
+
+#CADD
+glm.cadd <- glm(class ~ cadd_phred, data = data, subset = rowTrain, family=binomial)
+
+
+cadd.pred.prob  <- predict(glm.cadd, newdata = data[-rowTrain,], type="response")
+
+cadd.pred <- rep("B", length(cadd.pred.prob))
+cadd.pred[cadd.pred.prob > 0.5] <- "P"
+
+cadd.glm <- roc(data$class[-rowTrain], cadd.pred.prob)
+
+roc.cadd <- roc(data$class[-rowTrain], cadd.pred.prob)
+auc(roc.cadd)
+
+#meta_SVM
+glm.msvm <- glm(class ~ meta_svm_rankscore, data = data, subset = rowTrain, family=binomial)
+
+
+msvm.pred.prob  <- predict(glm.msvm, newdata = data[-rowTrain,], type="response")
+
+msvm.pred <- rep("B", length(msvm.pred.prob))
+msvm.pred[msvm.pred.prob > 0.5] <- "P"
+
+roc.msvm <- roc(data$class[-rowTrain], msvm.pred.prob)
+auc(roc.msvm)
+
+#polyphe
+glm.poly <- glm(class ~ polyphen2_hdiv_rankscore, data = data, subset = rowTrain, family=binomial)
+
+
+poly.pred.prob  <- predict(glm.poly, newdata = data[-rowTrain,], type="response")
+
+poly.pred <- rep("B", length(poly.pred.prob))
+poly.pred[poly.pred.prob > 0.5] <- "P"
+
+roc.poly <- roc(data$class[-rowTrain], poly.pred.prob)
+auc(roc.poly)
+
+
+plot(roc.glm, col = 1, main = "ROC")
+plot(roc.cadd, col = 2, add = TRUE)
+plot(roc.msvm, col = 3, add = TRUE)
+plot(roc.sift, col = 4, add = TRUE)
+plot(roc.poly, col = 5, add = TRUE)
+
+ggroc(list(roc.glm, roc.cadd, roc.sift, roc.msvm, roc.poly)) 
+```
+
+
+
+
+```{r random forest}
+
+set.seed(5)
+
+subset = data[sample(nrow(data), 285820), ]  #25% 
+train <- sample(1:nrow(subset), nrow(subset)/2)
+
+
+#random forest
+
+rf.var <- randomForest(class ~ ., subset[train,], mtry=5, importance =TRUE, na.action = na.exclude)
+
+importance(rf.var)
+
+pred.test.rf <- predict(rf.var, newdata = subset[-train,], type = "prob")
+
+table(subset[-train]$class, pred.test.rf)
+
+
+
+varImpPlot(rf.var)
+
+#bagging - performs no better than random forest
+
+#bag.var <- randomForest(class ~ ., subset[train,], mtry=22, importance =TRUE, na.action = na.exclude)
+#pred.test.bag <- predict(bag.var, newdata = subset[-train,], type = "prob")
+```
+
+Mtry is the square root of the number of predictors available for our analysis (23) which calculates to 5. As we can see, random forest is highly accurate when predicting the larger class (in this case benign), whereas it struggles to correctly identify pathogenic variants.
