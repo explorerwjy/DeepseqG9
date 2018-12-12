@@ -11,7 +11,7 @@ class ManipulateData:
     def __init__(self):
         self.std_header = ['genename', 'assembly', 'chr', 'pos', 'ref', 'alt', 'ref_aa', 'alt_aa', 'swissprot_pos', 'ensp', 'swissprot', 'dbsnp', 'source', 'source_id', 'target', 'descr', 'var_id', 'swissprot_var_id', 'af']
         return 
-    def mergeTable(self, GeneFile, hgmd, clinvar, cancer):
+    def mergeTable(self, GeneFile, hgmd, clinvar, cancer, AF = 1e-4):
         out = csv.writer(open("hgmd_clinvar_cancer_combined_pathogenic_variants.tsv", 'wb'), delimiter = "\t")
         out.writerow(self.std_header)
         self.hgmd_genes = self.reduce_var_gene(hgmd)
@@ -27,6 +27,10 @@ class ManipulateData:
                 if gene not in dataset:
                     continue
                 for _var, row in dataset[gene].items():
+                    if row[14] != '1':
+                        continue
+                    if float(row[18]) > AF:
+                        continue
                     if _var not in gene_vars:
                         gene_vars[_var] = row
                     else:
@@ -107,7 +111,7 @@ class ManipulateData:
                 out.writerow([PDB, Chain, trash, AA, PDB_Coord, Uni, aa, Uni_Coord])
             except:
                 continue
-                
+
 class myPDB:
     def __init__(self, PDB, chain):
         self.PDB = PDB
@@ -164,3 +168,12 @@ class Gene2PDB:
 
 ins = ManipulateData()
 
+class ConstrainModel:
+    def __init__(self):
+        
+        #self.Mutable=
+        pass 
+
+    def chi2(obs, exp):
+        return (obs-exp) ** 2 / exp
+cons = ConstrainModel()
