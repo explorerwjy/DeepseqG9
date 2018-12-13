@@ -125,7 +125,7 @@ my_mean = levels %>%
   mutate(score = as.numeric(score)) 
 
 mean(my_mean$score) #0.5239517
-sd(my_mean$score)/2 #one sd
+sd(my_mean$score)/2 #0.1984758
 
 levels$prediction <- rep("B", length(test.pred.prob))
 levels$prediction[levels$score >= 0.1273666 & levels$score <  0.2974388] <- "LB"
@@ -153,7 +153,7 @@ levels1 %>%
   ggplot(aes(score, ..density.., fill = reference)) +
   geom_histogram(alpha = 0.7, position = "identity")+
   scale_fill_manual(values=c("deepskyblue", "coral1")) +
-  ggtitle("DeepSeq9 Histogram") 
+  ggtitle("DeepSeq9 Logistic Histogram") 
 
 levels1 %>%
   group_by(reference, prediction) %>%
@@ -255,12 +255,13 @@ pred.test.rf <- predict(rf.var, newdata = data_test, type = "prob")
 rf.prob = as.data.frame(pred.test.rf) %>%
   clean_names() %>%
   dplyr::select(-b)  %>%
-  rename(pred = p) 
+  rename(score = p) 
 
 #using probability of benign
+
+rf.prob1 = rf.prob 
 rf.prob$pred[rf.prob$pred > 0.5] <- "P"
 rf.prob$pred[rf.prob$pred <= 0.5] <- "B"
-
 
 #class is reference
 #pred is prediction
@@ -269,8 +270,15 @@ cro(rf.prob$pred, data_test$class)
 #specificity = 0.872
 #sensitivity = 0.918
 
+rf.prob1 %>%
+  ggplot(aes(score, ..density..)) +
+  geom_histogram(alpha = 0.7, position = "identity")+
+  ggtitle("DeepSeq9 RF Histogram") 
+
 auc.rf = auc(data_test$class, pred.test.rf[,2])
 auc.rf
+
+
 
 roc.rf = roc(data_test$class, pred.test.rf[,2])
 
@@ -288,3 +296,24 @@ ggroc(roc.rf) +
 
 Mtry is the square root of the number of predictors available for our analysis (23) which calculates to 5. As we can see, random forest is highly accurate when predicting the larger class (in this case benign), whereas it struggles to correctly identify pathogenic variants.
 
+
+f we were to assume a bell curve of 'real' values, let's say more than 2SD below the mean = Benign, 1.5-2SD below the mean = likely benign, 1.5 below to 1.5 above =VUS, 1.5-2SD above = likely pathogenic, more than 2SD above = pathogenic
+```{r}
+
+#class distinction
+
+mean(rf.prob1$score) #0.5260489
+sd(rf.prob1$score)/2 #0.198486
+
+
+#class is reference
+#class1 is prediction
+rf.prob1$class1 <- rep("B", length(rf.prob1))
+rf.prob1$class1[rf.prob1$score >= 0.1290769 & rf.prob1$score <  0.2283199] <- "LB"
+rf.prob1$class1[rf.prob1$score >= 0.2283199 & rf.prob1$score <  0.8237779] <- "VUS"
+rf.prob1$class1[rf.prob1$score >= 0.8237779 & rf.prob1$score <  0.9230209] <- "LP"
+rf.prob1$class1[rf.prob1$score > 0.9230209] <- "P"
+
+cro(rf.prob1$class1, data_test$class)
+
+```
