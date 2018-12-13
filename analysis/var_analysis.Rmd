@@ -64,7 +64,7 @@ final = final %>%
 #Y: NAs : lrt_converted_rankscore, mutation_taster_converted_rankscores  #delete Y rows
 
 data = final %>%
-  dplyr::select(class, sift_converted_rankscore, polyphen2_hdiv_rankscore, polyphen2_hvar_rankscore, lrt_converted_rankscore, mutation_taster_converted_rankscore, mutation_assessor_score_rankscore, fathmm_converted_rankscore, provean_converted_rankscore, vest3_rankscore, meta_svm_rankscore, meta_lr_rankscore, m_cap_rankscore, cadd_phred, dann_rankscore, fathmm_mkl_coding_rankscore, geno_canyon_score_rankscore, gerp_rs_rankscore, phylo_p100way_vertebrate_rankscore, phylo_p20way_mammalian_rankscore, phast_cons100way_vertebrate_rankscore, phast_cons20way_mammalian_rankscore, si_phy_29way_log_odds_rankscore) %>%
+  dplyr::select(class, mis_z, sift_converted_rankscore, polyphen2_hdiv_rankscore, polyphen2_hvar_rankscore, lrt_converted_rankscore, mutation_taster_converted_rankscore, mutation_assessor_score_rankscore, fathmm_converted_rankscore, provean_converted_rankscore, vest3_rankscore, meta_svm_rankscore, meta_lr_rankscore, m_cap_rankscore, cadd_phred, dann_rankscore, fathmm_mkl_coding_rankscore, geno_canyon_score_rankscore, gerp_rs_rankscore, phylo_p100way_vertebrate_rankscore, phylo_p20way_mammalian_rankscore, phast_cons100way_vertebrate_rankscore, phast_cons20way_mammalian_rankscore, si_phy_29way_log_odds_rankscore) %>%
   mutate_if(is.factor, funs(as.character)) %>%
   mutate(class = factor(class, levels = c("B", "P"), ordered = F)) %>%
   mutate_if(is.character, funs(as.numeric)) %>%
@@ -73,7 +73,7 @@ data = final %>%
 summary(data)  
 colSums(is.na(data))
 
-colnames(data)
+data %>% group_by(class) %>% count()
 ```
 
 ```{r}
@@ -135,7 +135,7 @@ levels$prediction[levels$score >= 0.8213905 & levels$score <  0.9205368] <- "LP"
 levels$prediction[levels$score > 0.9205368] <- "P"
 
 #losing 5785 to NAs ie 24%
-
+cro(levels1$prediction, levels1$reference)
 
 #larger type II error than type I error, 
   #McNemar: reject null that they are equivalent 
@@ -154,6 +154,17 @@ levels1 %>%
   ggplot(aes(score, fill = reference)) +
   geom_histogram(alpha = 0.6, position = "identity")+
   geom_vline(aes(xintercept = 0.5), colour="darkslategrey", linetype = "dashed") +
+  scale_fill_manual(values=c("deepskyblue", "coral1")) +
+  ggtitle("Logistic Histogram") 
+
+levels1 %>%
+  mutate(score = as.numeric(score)) %>%
+  ggplot(aes(score, fill = reference)) +
+  geom_histogram(alpha = 0.6, position = "identity")+
+  geom_vline(aes(xintercept = 0.1273666), colour="darkslategrey", linetype = "dashed") +
+  geom_vline(aes(xintercept = 0.2974388), colour="darkslategrey", linetype = "dashed") +
+  geom_vline(aes(xintercept = 0.8213905), colour="darkslategrey", linetype = "dashed") +
+  geom_vline(aes(xintercept = 0.9205368), colour="darkslategrey", linetype = "dashed") +
   scale_fill_manual(values=c("deepskyblue", "coral1")) +
   ggtitle("Logistic Histogram") 
 
@@ -250,10 +261,12 @@ importance(rf.var)
 
 pred.test.rf <- predict(rf.var, newdata = data_test, type = "prob")
 
+getTree(rf.var, 1, labelVar=TRUE)
+
 rf.prob = as.data.frame(pred.test.rf) %>%
   clean_names() %>%
   dplyr::select(-b)  %>%
-  rename(probability = p) 
+  rename(score = p) 
 
 #using probability of benign
 test_class = data_test$class
@@ -279,11 +292,21 @@ sum(diag(rf.cm))/sum(rf.cm)
 #sensitivity = 0.918
 
 rf.prob %>%
-  ggplot(aes(probability, fill = reference)) +
+  ggplot(aes(score, fill = reference)) +
   geom_histogram(alpha = 0.6, position = "identity") +
   geom_vline(aes(xintercept = 0.5), colour="darkslategrey", linetype = "dashed") +
   scale_fill_manual(values=c("deepskyblue", "coral1")) +
-  ggtitle("RF Histogram") 
+  ggtitle("RF Histogram")
+
+rf.prob %>%
+  ggplot(aes(score, fill = reference)) +
+  geom_histogram(alpha = 0.6, position = "identity") +
+  geom_vline(aes(xintercept = 0.1290769), colour="darkslategrey", linetype = "dashed") +
+  geom_vline(aes(xintercept = 0.2283199), colour="darkslategrey", linetype = "dashed") +
+  geom_vline(aes(xintercept = 0.8237779), colour="darkslategrey", linetype = "dashed") +
+  geom_vline(aes(xintercept = 0.9230209), colour="darkslategrey", linetype = "dashed") +
+  scale_fill_manual(values=c("deepskyblue", "coral1")) +
+  ggtitle("RF Histogram")
 
 auc.rf = auc(data_test$class, pred.test.rf[,2])
 auc.rf
@@ -310,8 +333,8 @@ f we were to assume a bell curve of 'real' values, let's say more than 2SD below
 
 #class distinction
 
-mean(rf.prob1$score) #0.5260489
-sd(rf.prob1$score)/2 #0.198486
+mean(rf.prob1$score) #0.526634
+sd(rf.prob1$score)/2 #0.1994764
 
 
 rf.prob1$class[rf.prob1$score < 0.1290769] <- "B"
