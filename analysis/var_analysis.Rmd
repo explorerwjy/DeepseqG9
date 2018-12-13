@@ -114,7 +114,7 @@ specificity(data = as.factor(test.pred),
             reference = data$class[-rowTrain])
 
 
-confusionMatrix(data = as.factor(test.pred), positive = "P",
+caret::confusionMatrix(data = as.factor(test.pred), positive = "P",
                 reference = data$class[-rowTrain]) 
 
 reference = data$class[-rowTrain]
