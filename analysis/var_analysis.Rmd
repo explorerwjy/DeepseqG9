@@ -73,6 +73,8 @@ data = final %>%
 summary(data)  
 colSums(is.na(data))
 
+colnames(data)
+
 ```
 
 ```{r}
@@ -150,7 +152,7 @@ levels1 = levels %>%
 
 levels1 %>%
   mutate(score = as.numeric(score)) %>%
-  ggplot(aes(score, ..density.., fill = reference)) +
+  ggplot(aes(score, fill = reference)) +
   geom_histogram(alpha = 0.7, position = "identity")+
   scale_fill_manual(values=c("deepskyblue", "coral1")) +
   ggtitle("DeepSeq9 Logistic Histogram") 
@@ -158,8 +160,6 @@ levels1 %>%
 levels1 %>%
   group_by(reference, prediction) %>%
   count()
-
-levels %>% filter(is.na(score)) %>% group_by(reference, prediction) %>% count()
 ```
 
 Prediction with the logistic model results in high sensitivity and low specificity, with an area under the curve of 0.875. 
@@ -258,33 +258,34 @@ rf.prob = as.data.frame(pred.test.rf) %>%
   rename(score = p) 
 
 #using probability of benign
+test_class = data_test$class
+rf.prob["reference"] <- test_class
+
 
 rf.prob1 = rf.prob 
-rf.prob$pred[rf.prob$pred > 0.5] <- "P"
-rf.prob$pred[rf.prob$pred <= 0.5] <- "B"
+rf.prob$class[rf.prob$score > 0.5] <- "P"
+rf.prob$class[rf.prob$score <= 0.5] <- "B"
 
 #class is reference
 #pred is prediction
-cro(rf.prob$pred, data_test$class)
+cro(rf.prob$class, data_test$class)
 
 #specificity = 0.872
 #sensitivity = 0.918
 
-rf.prob1 %>%
-  ggplot(aes(score, ..density..)) +
-  geom_histogram(alpha = 0.7, position = "identity")+
+rf.prob %>%
+  ggplot(aes(score, fill = reference)) +
+  geom_histogram(alpha = 0.6, position = "identity") +
+  scale_fill_manual(values=c("deepskyblue", "coral1")) +
   ggtitle("DeepSeq9 RF Histogram") 
 
 auc.rf = auc(data_test$class, pred.test.rf[,2])
 auc.rf
 
 
-
 roc.rf = roc(data_test$class, pred.test.rf[,2])
 
-ggroc(roc.rf) +
-  scale_color_manual(labels = "DeepSeq9",
-                     values = "red") +
+ggroc(roc.rf, color = "red") +
   geom_abline(intercept = 1, slope = 1, color="darkslategrey", 
                  linetype="dashed", size= 0.5) +
   ggtitle("RF ROC Curve") 
@@ -306,14 +307,14 @@ mean(rf.prob1$score) #0.5260489
 sd(rf.prob1$score)/2 #0.198486
 
 
-#class is reference
-#class1 is prediction
-rf.prob1$class1 <- rep("B", length(rf.prob1))
-rf.prob1$class1[rf.prob1$score >= 0.1290769 & rf.prob1$score <  0.2283199] <- "LB"
-rf.prob1$class1[rf.prob1$score >= 0.2283199 & rf.prob1$score <  0.8237779] <- "VUS"
-rf.prob1$class1[rf.prob1$score >= 0.8237779 & rf.prob1$score <  0.9230209] <- "LP"
-rf.prob1$class1[rf.prob1$score > 0.9230209] <- "P"
+rf.prob1$class[rf.prob1$score < 0.1290769] <- "B"
+rf.prob1$class[rf.prob1$score >= 0.1290769 & rf.prob1$score <  0.2283199] <- "LB"
+rf.prob1$class[rf.prob1$score >= 0.2283199 & rf.prob1$score <  0.8237779] <- "VUS"
+rf.prob1$class[rf.prob1$score >= 0.8237779 & rf.prob1$score <  0.9230209] <- "LP"
+rf.prob1$class[rf.prob1$score > 0.9230209] <- "P"
 
-cro(rf.prob1$class1, data_test$class)
-
+cro(rf.prob1$class, rf.prob1$reference)
 ```
+
+FIGURES: Distribution of scores, table showing classifications, sensitivity specificity
+ROC curve, sensitivity/specificity
