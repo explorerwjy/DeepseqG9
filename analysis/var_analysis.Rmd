@@ -22,11 +22,11 @@ library(randomForest)
 library(expss)
 
 
-benign = gzfile('benign1.csv.gz', 'rt')
-pathogenic = gzfile('pathogenic1.csv.gz', 'rt')
+benign = gzfile('benign2.tsv.gz', 'rt')
+pathogenic = gzfile('pathogenic2.tsv.gz', 'rt')
 
-ben = read.csv(benign, header = F)
-path = read.csv(pathogenic, header = F)
+path  = read.table(pathogenic, sep = '\t')
+ben = read.table(benign, sep = '\t')
 
 names(ben) <- as.matrix(ben[1,])
 ben <- ben[-1,]
@@ -74,7 +74,6 @@ summary(data)
 colSums(is.na(data))
 
 colnames(data)
-
 ```
 
 ```{r}
@@ -153,9 +152,10 @@ levels1 = levels %>%
 levels1 %>%
   mutate(score = as.numeric(score)) %>%
   ggplot(aes(score, fill = reference)) +
-  geom_histogram(alpha = 0.7, position = "identity")+
+  geom_histogram(alpha = 0.6, position = "identity")+
+  geom_vline(aes(xintercept = 0.5), colour="darkslategrey", linetype = "dashed") +
   scale_fill_manual(values=c("deepskyblue", "coral1")) +
-  ggtitle("DeepSeq9 Logistic Histogram") 
+  ggtitle("Logistic Histogram") 
 
 levels1 %>%
   group_by(reference, prediction) %>%
@@ -234,10 +234,8 @@ ggroc(list(roc.glm, roc.cadd, roc.sift, roc.msvm, roc.poly)) +
 
 set.seed(5)
 
-data2 = data %>%
-  na.omit()
 
-data2 = data2[-1,]
+data2 = data[-1,]
 
 train <- sample(1:nrow(data2), nrow(data2)/2)
 data_train = data2[train,]
@@ -255,7 +253,7 @@ pred.test.rf <- predict(rf.var, newdata = data_test, type = "prob")
 rf.prob = as.data.frame(pred.test.rf) %>%
   clean_names() %>%
   dplyr::select(-b)  %>%
-  rename(score = p) 
+  rename(probability = p) 
 
 #using probability of benign
 test_class = data_test$class
@@ -263,25 +261,32 @@ rf.prob["reference"] <- test_class
 
 
 rf.prob1 = rf.prob 
-rf.prob$class[rf.prob$score > 0.5] <- "P"
-rf.prob$class[rf.prob$score <= 0.5] <- "B"
+rf.prob$class[rf.prob$probability > 0.5] <- "P"
+rf.prob$class[rf.prob$probability <= 0.5] <- "B"
 
 #class is reference
 #pred is prediction
-cro(rf.prob$class, data_test$class)
+rf.cm = table(rf.prob$class, data_test$class)
+rf.cm
+
+mcnemar.test(rf.cm)
+
+#accuracy
+sum(diag(rf.cm))/sum(rf.cm)
+
 
 #specificity = 0.872
 #sensitivity = 0.918
 
 rf.prob %>%
-  ggplot(aes(score, fill = reference)) +
+  ggplot(aes(probability, fill = reference)) +
   geom_histogram(alpha = 0.6, position = "identity") +
+  geom_vline(aes(xintercept = 0.5), colour="darkslategrey", linetype = "dashed") +
   scale_fill_manual(values=c("deepskyblue", "coral1")) +
-  ggtitle("DeepSeq9 RF Histogram") 
+  ggtitle("RF Histogram") 
 
 auc.rf = auc(data_test$class, pred.test.rf[,2])
 auc.rf
-
 
 roc.rf = roc(data_test$class, pred.test.rf[,2])
 
@@ -292,6 +297,8 @@ ggroc(roc.rf, color = "red") +
 
 #bag.var <- randomForest(class ~ ., subset[train,], mtry=22, importance =TRUE, na.action = na.exclude)
 #pred.test.bag <- predict(bag.var, newdata = subset[-train,], type = "prob")
+
+varImpPlot(rf.var)
 ```
 
 
@@ -315,6 +322,3 @@ rf.prob1$class[rf.prob1$score > 0.9230209] <- "P"
 
 cro(rf.prob1$class, rf.prob1$reference)
 ```
-
-FIGURES: Distribution of scores, table showing classifications, sensitivity specificity
-ROC curve, sensitivity/specificity
