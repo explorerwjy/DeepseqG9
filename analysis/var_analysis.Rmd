@@ -20,7 +20,7 @@ library(ROCR)
 library(MASS)
 library(randomForest)
 library(expss)
-
+library(ModelMetrics)
 
 benign = gzfile('benign2.tsv.gz', 'rt')
 pathogenic = gzfile('pathogenic2.tsv.gz', 'rt')
@@ -74,6 +74,8 @@ summary(data)
 colSums(is.na(data))
 
 data %>% group_by(class) %>% count()
+
+colnames(data)
 ```
 
 ```{r}
@@ -277,10 +279,15 @@ rf.prob1 = rf.prob
 rf.prob$class[rf.prob$score > 0.5] <- "P"
 rf.prob$class[rf.prob$score <= 0.5] <- "B"
 
+rf.prob$class = as.factor(rf.prob$class)
+
 #class is reference
 #pred is prediction
 rf.cm = table(rf.prob$class, data_test$class)
 rf.cm
+
+
+caret::confusionMatrix(rf.prob$reference, rf.prob$class)
 
 mcnemar.test(rf.cm)
 
