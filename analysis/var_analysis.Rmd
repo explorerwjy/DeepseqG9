@@ -274,8 +274,8 @@ rf.prob["reference"] <- test_class
 
 
 rf.prob1 = rf.prob 
-rf.prob$class[rf.prob$probability > 0.5] <- "P"
-rf.prob$class[rf.prob$probability <= 0.5] <- "B"
+rf.prob$class[rf.prob$score > 0.5] <- "P"
+rf.prob$class[rf.prob$score <= 0.5] <- "B"
 
 #class is reference
 #pred is prediction
