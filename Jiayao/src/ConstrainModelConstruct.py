@@ -11,9 +11,9 @@ import numpy as np
 
 ExonTab = "../dat/gencodeV19.selected.Transcripts.bed"
 hg19 = "/share/data/resources/hg19/references/hg19.fasta"
-allmisFil = "../dat/revel_all_chromosomes.txt.gz"
-#allmisFil = "../dat/SYN/ALL.MIS.sort.txt.gz"
-#allsynFil = "../dat/SYN/ALL.SYN.sort.txt.gz"
+#allmisFil = "../dat/revel_all_chromosomes.txt.gz"
+allmisFil = "../dat/SYN/MIS.txt.gz"
+allsynFil = "../dat/SYN/SYN.txt.gz"
 
 #allmisFil = "../dat/SYN/tmp/test.mis.sort.txt.gz"
 #allsynFil = "../dat/SYN/tmp/test.sort.txt.gz"
@@ -164,11 +164,13 @@ def GetObsSynMis(gnomAD, Chr, Start, End):
 # SYN_Rate MIS_Rate
 def ComputeRatePerExon2(Table, SYN_ALL, MIS_ALL):
     fin = open(Table, 'rb')
-    fout = csv.writer(open("ExonMuteRate.tsv", 'wb'), delimiter="\t")
+    fout = csv.writer(open("ExonMuteRate.2.tsv", 'wb'), delimiter="\t")
     res = {}
     for l in fin:
         row = l.strip().split("\t")
         Chr = row[0].strip("chr")
+        if Chr == "Y":
+            continue
         start, end = int(row[1]), int(row[2])
         SYNRate =  AggregateMutationRate2(Chr, start, end, SYN_ALL)
         MISRate =  AggregateMutationRate2(Chr, start, end, MIS_ALL)
@@ -204,15 +206,15 @@ def main():
     HG19 = pysam.FastaFile(hg19)
     GeneExons = LoadTrans()
     ALLMIS = pysam.TabixFile(allmisFil)
-    #ALLSYN = pysam.TabixFile(allsynFil)
+    ALLSYN = pysam.TabixFile(allsynFil)
     Cov = pysam.TabixFile(gnomAD_Cov_Fil)
     gnomAD = pysam.TabixFile("gnomad.Exon.Rare.HighConf.vcf.gz")
     #print HG19.fetch('1', 67000041, 67000051)
     #print ALLMIS.fetch('1', 67000041, 67000051)
     #TestGene("KLHL17", GeneExons, HG19, ALLMIS, mutable)
     Tab = "Regioins.addObsDepth.tsv"
-    ComputeRatePerExon(Tab, HG19, ALLMIS, mutable) 
-    #ComputeRatePerExon2(Table, ALLSYN, ALLMIS) 
+    #ComputeRatePerExon(Tab, HG19, ALLMIS, mutable) 
+    ComputeRatePerExon2(Tab, ALLSYN, ALLMIS) 
     #ComputeObsNumPerExon(ExonTab, gnomAD, Cov)
 
 
